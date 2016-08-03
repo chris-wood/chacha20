@@ -2,6 +2,10 @@ import Data.Bits
 import Data.Word
 import Numeric (showHex, readHex, showIntAtBase)
 
+-- Helpers
+toWord32 :: [Char] -> Word32
+toWord32 string = fromIntegral (fst ((readHex string) !! 0))
+
 quarterRound1 :: (Word32, Word32, Word32, Word32) -> (Word32, Word32, Word32, Word32)
 quarterRound1 (a, b, c, d) = do
     let aprime = a + b
@@ -26,12 +30,23 @@ quarterRound3 (a, b, c, d) = do
 quarterRound4 :: (Word32, Word32, Word32, Word32) -> (Word32, Word32, Word32, Word32)
 quarterRound4 (a, b, c, d) = do
     let cprime = c + d
-    let bprime = b + cprime
-    let bout = rotateL b 7
+    let bprime = xor b cprime
+    let bout = rotateL bprime 7
         in (a, bout, cprime, d)
 
 fullQuarterRound :: (Word32, Word32, Word32, Word32) -> (Word32, Word32, Word32, Word32)
 fullQuarterRound (a, b, c, d) = quarterRound4 (quarterRound3 (quarterRound2 (quarterRound1 (a, b, c, d) )))
+
+testFullQuarterRound :: IO()
+testFullQuarterRound = do
+    let a = toWord32 "11111111"
+    let b = toWord32 "01020304"
+    let c = toWord32 "9b8d6f43"
+    let d = toWord32 "01234567"
+    print [a, b, c, d]
+    let (a', b', c', d') = fullQuarterRound (a, b, c, d)
+        in 
+            print [a', b', c', d']
 
 type ChaChaState = [Word32]
 
@@ -44,10 +59,6 @@ quarterRound :: ChaChaState -> (Int, Int, Int, Int) -> ChaChaState
 quarterRound state (x, y, w, z) = do
     let (w', x', y', z') = fullQuarterRound (state!!w, state!!x, state!!y, state!!z)
         in replaceNthElement w w' (replaceNthElement x x' (replaceNthElement y y' (replaceNthElement z z' state)))
-
--- Test cases
-toWord32 :: [Char] -> Word32
-toWord32 string = fromIntegral (fst ((readHex string) !! 0))
 
 testState :: IO()
 testState = do
