@@ -56,7 +56,7 @@ replaceNthElement n v (x:xs)
     | otherwise = x:(replaceNthElement (n - 1) v xs)
 
 quarterRound :: ChaChaState -> (Int, Int, Int, Int) -> ChaChaState
-quarterRound state (x, y, w, z) = do
+quarterRound state (w, x, y, z) = do
     let (w', x', y', z') = fullQuarterRound (state!!w, state!!x, state!!y, state!!z)
         in replaceNthElement w w' (replaceNthElement x x' (replaceNthElement y y' (replaceNthElement z z' state)))
 
