@@ -65,6 +65,11 @@ flipState state = map flipWord state
 word32ToBytes :: Word32 -> [Word8]
 word32ToBytes x = map fromIntegral [(shiftR (x .&. 0xFF000000) 24), (shiftR (x .&. 0xFF0000) 16), (shiftR (x .&. 0xFF00) 8), ((x .&. 0xFF))]
 
+bytesToWord32 :: [Word8] -> Word32
+bytesToWord32 = foldl accum 0
+    where
+        accum a o = (a `shiftL` 8) .|. fromIntegral o
+
 merge :: [[Word8]] -> [Word8]
 merge [] = []
 merge ([]:xss) = merge xss
@@ -72,6 +77,9 @@ merge ((x:xs):y) = [x] ++ xs ++ (merge y)
 
 stateToBytes :: ChaChaState -> [Word8] 
 stateToBytes state = merge (map word32ToBytes state)
+
+bytesToState :: [Word8] -> ChaChaState
+bytesToState (x1:x2:x3:x4:xs) = (bytesToWord32 [x1,x2,x3,x4]) : (bytesToState xs)
 
 replaceNthElement :: Int -> Word32 -> [Word32] -> [Word32]
 replaceNthElement n v (x:xs)
@@ -136,18 +144,15 @@ testChaCha20Block = do
         in
             displayState state
 
-chaCha20EncryptBlock :: [Word32] -> Word32 -> [Word32] -> [Word8] -> [Word8]
-chaCha20EncryptBlock key counter nonce block = do
+chaCha20Encrypt :: [Word32] -> Word32 -> [Word32] -> [Word8] -> [Word8]
+chaCha20Encrypt key counter nonce [] = []
+chaCha20Encrypt key counter nonce block = do
     let keyStream = chaCha20Block key nonce counter 
     let pad = stateToBytes keyStream
+    let len = max 32 (length block)
+    let maskedBlock = zipWith xor (take len pad) (take len block)
         in
-            zipWith xor pad block
-
-chaCha20Encrypt :: [Word32] -> Word32 -> [Word32] -> [Word8] -> [Word8]
-chaCha20Encrypt key counter nonce plaintext = do
-    let upperRange = (length plaintext) `div` 8
-        in 
-            error "TODO"
+            maskedBlock ++ chaCha20Encrypt key (counter + 1) nonce (drop 32 block)
 
 
 
