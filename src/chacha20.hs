@@ -1,6 +1,10 @@
 import Data.Bits
 import Data.Word
 import Numeric (showHex, readHex, showIntAtBase)
+import Data.ByteString.Internal (unpackBytes)
+import Data.ByteString.Char8 (pack)
+import Data.Char (intToDigit)
+import Debug.Trace
 
 -- Helpers
 toWord32 :: [Char] -> Word32
@@ -124,7 +128,7 @@ chaCha20Block :: [Word32] -> [Word32] -> Word32 -> [Word32]
 chaCha20Block key nonce count 
     | length key /= 8 = error "Invalid key length -- must be 256 bits"
     | length nonce /= 3 = error "Invalid nonce length -- must be 96 bits"
-    | otherwise = do
+    | otherwise = do -- trace ("counter = " ++ show count ++ "\n") $ do
         let state = [toWord32 "61707865", toWord32 "3320646e", toWord32 "79622d32", toWord32 "6b206574",
                      flipWord (key !! 0), flipWord (key !! 1), flipWord (key !! 2), flipWord (key !! 3),
                      flipWord (key !! 4), flipWord (key !! 5), flipWord (key !! 6), flipWord (key !! 7),
@@ -132,6 +136,7 @@ chaCha20Block key nonce count
         
         let mixedState = chaCha20BlockLoop state 10
             in
+                --trace (show state) $ 
                 flipState (zipWith (+) state mixedState)
 
 testChaCha20Block :: IO()
@@ -144,15 +149,30 @@ testChaCha20Block = do
         in
             displayState state
 
-chaCha20Encrypt :: [Word32] -> Word32 -> [Word32] -> [Word8] -> [Word8]
-chaCha20Encrypt key counter nonce [] = []
-chaCha20Encrypt key counter nonce block = do
+chaCha20Encrypt :: [Word8] -> [Word32] -> Word32 -> [Word32] -> [Word8] -> [Word8]
+chaCha20Encrypt acc key counter nonce [] = []
+chaCha20Encrypt acc key counter nonce block = do -- trace  (show (take 32 acc)  ++ "   " ++ show counter ++ ", " ++ show (length block) ++ ", " ++ show (min 32 (length block)) ++ "\n") $ do
     let keyStream = chaCha20Block key nonce counter 
     let pad = stateToBytes keyStream
-    let len = max 32 (length block)
+    let len = min 64 (length block)
     let maskedBlock = zipWith xor (take len pad) (take len block)
         in
-            maskedBlock ++ chaCha20Encrypt key (counter + 1) nonce (drop 32 block)
+            maskedBlock ++ chaCha20Encrypt maskedBlock key (counter + 1) nonce (drop len block)
 
+stringToBytes :: String -> [Word8]
+stringToBytes = unpackBytes . pack 
+
+testChaCha20Encrypt :: IO()
+testChaCha20Encrypt = do
+    let key = [toWord32 "00010203", toWord32 "04050607", toWord32 "08090a0b", toWord32 "0c0d0e0f", 
+               toWord32 "10111213", toWord32 "14151617", toWord32 "18191a1b", toWord32 "1c1d1e1f"]
+    let nonce = [toWord32 "00000000", toWord32 "0000004a", toWord32 "00000000"]
+    let counter = toWord32 "1"
+    let plaintext = stringToBytes "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it."
+    let ciphertext = chaCha20Encrypt [] key counter nonce plaintext
+    let hexBytes = map (\x -> showHex x "") ciphertext
+        in
+            print hexBytes
+            --print $ show (length ciphertext)
 
 
