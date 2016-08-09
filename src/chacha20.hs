@@ -1,3 +1,7 @@
+module ChaCha20 (
+    chaCha20Encrypt
+) where
+
 import Data.Bits
 import Data.Word
 import Numeric (showHex, readHex, showIntAtBase)
