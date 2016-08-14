@@ -152,15 +152,15 @@ testChaCha20Block = do
             displayState state
 
 -- Main encrypt function
-chaCha20Encrypt :: [Word8] -> [Word32] -> Word32 -> [Word32] -> [Word8] -> [Word8]
-chaCha20Encrypt acc key counter nonce [] = []
-chaCha20Encrypt acc key counter nonce block = do 
+chaCha20Encrypt :: [Word32] -> Word32 -> [Word32] -> [Word8] -> [Word8]
+chaCha20Encrypt key counter nonce [] = []
+chaCha20Encrypt key counter nonce block = do 
     let keyStream = chaCha20Block key nonce counter 
     let pad = stateToBytes keyStream
     let len = min 64 (length block)
     let maskedBlock = zipWith xor (take len pad) (take len block)
         in
-            maskedBlock ++ chaCha20Encrypt maskedBlock key (counter + 1) nonce (drop len block)
+            maskedBlock ++ chaCha20Encrypt key (counter + 1) nonce (drop len block)
 
 stringToBytes :: String -> [Word8]
 stringToBytes = unpackBytes . pack 
@@ -172,7 +172,7 @@ testChaCha20Encrypt = do
     let nonce = [toWord32 "00000000", toWord32 "0000004a", toWord32 "00000000"]
     let counter = toWord32 "1"
     let plaintext = stringToBytes "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it."
-    let ciphertext = chaCha20Encrypt [] key counter nonce plaintext
+    let ciphertext = chaCha20Encrypt key counter nonce plaintext
     let hexBytes = map (\x -> showHex x "") ciphertext
         in
             print hexBytes
